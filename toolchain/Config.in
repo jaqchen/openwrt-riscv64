@@ -130,6 +130,18 @@ menuconfig EXTERNAL_TOOLCHAIN
 		default "/opt/cross/powerpc-unknown-linux-gnu"  if powerpc
 		default "/opt/cross/x86_64-unknown-linux-gnu"   if x86_64
 
+	config TOOLCHAIN_LTO_ARCHIVE_FIXUP
+		bool
+		prompt "Toolchain LTO archive fixup"
+		depends on EXTERNAL_TOOLCHAIN && !NATIVE_TOOLCHAIN
+		default n
+		help
+		  Specify the object files compiled with LTO enabled should be
+		  handled by TARGET_CROSS-gcc-ar/gcc-nm/gcc-ranlib durning static
+		  archives processing, instead of by TARGET_CROSS-ar/nm/ranlib.
+		  This can be especially helpful for some external toolchains,
+		  such as arm/arm64 toolchains provided by ARM.
+
 	choice TOOLCHAIN_LIBC_TYPE
 		prompt "Toolchain libc"  if DEVEL
 		depends on EXTERNAL_TOOLCHAIN && !NATIVE_TOOLCHAIN

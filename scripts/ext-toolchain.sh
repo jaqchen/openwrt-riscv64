@@ -27,7 +27,7 @@ CFLAGS=""
 TOOLCHAIN="."
 
 LIBC_TYPE=""
-
+LTO_ARCHIVE_FIXUP=""
 
 # Library specs
 LIB_SPECS="
@@ -201,33 +201,11 @@ find_bins() {
 
 wrap_bin_cc() {
 	local out="$1"
-	local bin="$2"
 
-	echo    '#!/bin/sh'                                                > "$out"
-	echo    'for arg in "$@"; do'                                     >> "$out"
-	echo    ' case "$arg" in -l*|-L*|-shared|-static)'                >> "$out"
-	echo -n '  exec "'"$bin"'" '"$CFLAGS"' ${STAGING_DIR:+'           >> "$out"
-	echo -n '-idirafter "$STAGING_DIR/usr/include" '                  >> "$out"
-	echo -n '-L "$STAGING_DIR/usr/lib" '                              >> "$out"
-	echo    '-Wl,-rpath-link,"$STAGING_DIR/usr/lib"} "$@" ;;'         >> "$out"
-	echo    ' esac'                                                   >> "$out"
-	echo    'done'                                                    >> "$out"
-	echo -n 'exec "'"$bin"'" '"$CFLAGS"' ${STAGING_DIR:+'             >> "$out"
-	echo    '-idirafter "$STAGING_DIR/usr/include"} "$@"'             >> "$out"
-
-	chmod +x "$out"
-}
-
-wrap_bin_ld() {
-	local out="$1"
-	local bin="$2"
-
-	echo    '#!/bin/sh'                                                > "$out"
-	echo -n 'exec "'"$bin"'" ${STAGING_DIR:+'                         >> "$out"
-	echo -n '-L "$STAGING_DIR/usr/lib" '                              >> "$out"
-	echo    '-rpath-link "$STAGING_DIR/usr/lib"} "$@"'                >> "$out"
-
-	chmod +x "$out"
+	# remove the target if already exists
+	[ -e "$out" ] && rm -rf "$out"
+	ln -sv toolchain-wrapper "$out" || exit 2
+	return 0
 }
 
 wrap_bin_other() {
@@ -240,6 +218,34 @@ wrap_bin_other() {
 	chmod +x "$out"
 }
 
+wrap_bin_lto() {
+	local out="$1"
+	local bin="$2"
+
+	if [ -z "$LTO_ARCHIVE_FIXUP" ] ; then
+		echo    '#!/bin/sh'                                            > "$out"
+		echo    "exec \"$bin\" \$@"                                   >> "$out"
+		chmod +x "$out"
+		return 0
+	fi
+
+	# the script is executed by GNU bash,
+	# regular expressions are possible via [[ ]]
+	if [[ "$bin" =~ (^.+)-([^-]+)$ ]] ; then
+		bin="${BASH_REMATCH[1]}-gcc-${BASH_REMATCH[2]}"
+		if [ ! -x "$bin" ] ; then
+			echo "Error, toolchain not found: \"$bin\"." 1>&2
+			exit 1
+		fi
+		echo    '#!/bin/sh'                                            > "$out"
+		echo    "exec \"$bin\" \$@"                                   >> "$out"
+		chmod +x "$out"
+		return 0
+	fi
+	echo "Error, invalid toolchain binary: \"$bin\"" 1>&2
+	exit 1
+}
+
 wrap_bins() {
 	if probe_cc; then
 		mkdir -p "$1" || return 1
@@ -250,17 +256,15 @@ wrap_bins() {
 				local out="$1/${cmd##*/}"
 				local bin="$cmd"
 
-				if [ -x "$out" ] && ! grep -q STAGING_DIR "$out"; then
-					mv "$out" "$out.bin"
-					bin='$(dirname "$0")/'"${out##*/}"'.bin'
-				fi
-
 				case "${cmd##*/}" in
+					*-gcc-ar|*-gcc-nm|*-gcc-ranlib)
+						wrap_bin_other "$out" "$bin"
+					;;
+					*-ar|*-nm|*-ranlib)
+						wrap_bin_lto "$out" "$bin"
+					;;
 					*-*cc|*-*cc-*|*-*++|*-*++-*|*-cpp)
 						wrap_bin_cc "$out" "$bin"
-					;;
-					*-ld)
-						wrap_bin_ld "$out" "$bin"
 					;;
 					*)
 						wrap_bin_other "$out" "$bin"
@@ -571,6 +575,10 @@ while [ -n "$1" ]; do
 			echo -e "  cross compiler when performing tests."               >&2
 			echo -e "  This parameter may be repeated multiple times."      >&2
 			exit 1
+		;;
+
+		--lto-archive-fixup)
+			LTO_ARCHIVE_FIXUP=yes
 		;;
 
 		*)
