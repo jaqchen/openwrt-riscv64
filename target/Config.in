@@ -184,6 +184,10 @@ config powerpc64
 	select ARCH_64BIT
 	bool
 
+config riscv64
+	select ARCH_64BIT
+	bool
+
 config sh3
 	bool
 
@@ -229,4 +233,4 @@ config ARCH
 	default "sh4eb"     if sh4eb
 	default "sparc"     if sparc
 	default "x86_64"    if x86_64
-
+	default "riscv64"   if riscv64
