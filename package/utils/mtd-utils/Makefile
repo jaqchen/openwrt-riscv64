@@ -33,7 +33,7 @@ define Package/mtd-utils/Default
   SECTION:=utils
   CATEGORY:=Utilities
   URL:=http://www.linux-mtd.infradead.org/
-  DEPENDS:=@NAND_SUPPORT
+  DEPENDS:=@NAND_SUPPORT +libuuid +zlib
 endef
 
 define Package/ubi-utils
@@ -69,7 +69,7 @@ TARGET_LDFLAGS += -Wl,--gc-sections
 define Package/ubi-utils/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) \
-		$(PKG_INSTALL_DIR)/usr/sbin/{ubiattach,ubicrc32,ubiblock,ubidetach,ubiformat,ubimkvol} $(1)/usr/sbin/
+		$(PKG_INSTALL_DIR)/usr/sbin/{ubiattach,ubicrc32,ubiblock,ubidetach,ubiformat,ubimkvol,mkfs.ubifs} $(1)/usr/sbin/
 	$(INSTALL_BIN) \
 		$(PKG_INSTALL_DIR)/usr/sbin/{ubinfo,ubinize,ubirename,ubirmvol,ubirsvol,ubiupdatevol} $(1)/usr/sbin/
 endef
